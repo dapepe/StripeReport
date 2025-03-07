@@ -40,22 +40,34 @@ function generatePdf(report, filePath) {
       }
     }
 
-    // Payout Details (Two-column layout)
-    doc.fontSize(12).font('Helvetica').fillColor('black');
+    // Payout Details (Four-column layout with fixed value x-position and bold labels)
+    doc.fontSize(12).fillColor('black');
     const details = [
-      `ID: ${report.payout.id}`,
-      `Date: ${report.payout.date}`,
-      `Amount: ${report.payout.amount} ${report.payout.currency}`,
-      `Status: ${report.payout.status}`,
-      `Total Fees: ${report.payout.totalFees} ${report.payout.currency}`,
-      `Number of Invoices: ${report.payout.numberOfInvoices}`,
+      { label: 'Payout ID', value: report.payout.id },
+      { label: 'Amount', value: `${report.payout.amount} ${report.payout.currency}` },
+      { label: 'Date', value: report.payout.date },
+      { label: 'Status', value: report.payout.status },
+      { label: 'Total Fees', value: `${report.payout.totalFees} ${report.payout.currency}` },
+      { label: '# Invoices', value: report.payout.numberOfInvoices },
     ];
-    const colWidth = (doc.page.width - leftMargin - rightMargin) / 2;
-    details.forEach((line, index) => {
-      const col = index % 2 === 0 ? leftMargin : leftMargin + colWidth;
-      const rowY = y + Math.floor(index / 2) * 20;
-      doc.text(line, col, rowY, { width: colWidth - 10 });
-    });
+    const colWidth = (doc.page.width - leftMargin - rightMargin) / 2; // Two pairs per row
+    const valueXOffset = 100; // Fixed x-position for values relative to pair start
+    for (let i = 0; i < details.length; i += 2) {
+      const leftPair = details[i];
+      const rightPair = details[i + 1] || { label: '', value: '' };
+      const rowY = y + Math.floor(i / 2) * 20;
+
+      // Left pair
+      doc.font('Helvetica-Bold').text(`${leftPair.label}:`, leftMargin, rowY, { continued: false });
+      doc.font('Helvetica').text(leftPair.value, leftMargin + valueXOffset, rowY, { width: colWidth - valueXOffset - 10 });
+
+      // Right pair (if exists)
+      if (rightPair.label) {
+        const rightPairX = leftMargin + colWidth;
+        doc.font('Helvetica-Bold').text(`${rightPair.label}:`, rightPairX, rowY, { continued: false });
+        doc.font('Helvetica').text(rightPair.value, rightPairX + valueXOffset, rowY, { width: colWidth - valueXOffset - 10 });
+      }
+    }
     y += Math.ceil(details.length / 2) * 20 + 20;
 
     // Transactions Table

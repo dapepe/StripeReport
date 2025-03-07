@@ -204,9 +204,9 @@ async function viewPayout(payoutId) {
   }
 }
 
-async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config.format || 'html') {
+async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config.format || 'html', since) {
   await setupLogger(logFile);
-  log(`Config output: ${config.output}, REPORTS_DIR: ${REPORTS_DIR}, outDir: ${outDir}, payoutIds: ${payoutIds}, lastId: ${lastId}, format: ${format}`);
+  log(`Config output: ${config.output}, REPORTS_DIR: ${REPORTS_DIR}, outDir: ${outDir}, payoutIds: ${payoutIds}, lastId: ${lastId}, format: ${format}, since: ${since}`);
   await ensureDirectories(outDir);
   const template = format === 'html' ? await loadTemplate() : null;
 
@@ -214,15 +214,17 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
 
   if (Array.isArray(payoutIds) && payoutIds.length > 0) {
     payoutsToExport = payoutIds;
-  } else if (lastId) {
-    const params = { limit: 100, starting_after: lastId };
+  } else if (lastId || since) {
+    const params = { limit: 100 };
+    if (lastId) params.starting_after = lastId;
+    if (since) params.created = { gte: Math.floor(new Date(since).getTime() / 1000) };
     const payouts = [];
     let hasMore = true;
     let startingAfter = lastId;
 
     while (hasMore) {
       const pageParams = { ...params };
-      if (startingAfter) pageParams.starting_after = startingAfter;
+      if (startingAfter && !lastId) pageParams.starting_after = startingAfter; // Only use starting_after if lastId isn’t set
       log(`Fetching payouts with params:`, JSON.stringify(pageParams));
       const response = await stripe.payouts.list(pageParams);
       log(`Received ${response.data.length} payouts, has_more: ${response.has_more}`);
@@ -233,7 +235,7 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
     }
 
     payoutsToExport = payouts.map(p => p.id).reverse(); // Newest first
-    log(`Payouts to export from lastId ${lastId}: ${payoutsToExport.join(', ')}`);
+    log(`Payouts to export: ${payoutsToExport.join(', ')}`);
   } else {
     payoutsToExport = [payoutIds];
   }
@@ -379,6 +381,7 @@ const [command, ...args] = process.argv.slice(2);
       let logFile = null;
       let lastId = null;
       let format = config.format || 'html';
+      let since = null;
 
       if (args.length > 0 && !args[0].startsWith('--')) {
         payoutIds = [args[0]];
@@ -416,15 +419,18 @@ const [command, ...args] = process.argv.slice(2);
             process.exit(1);
           }
           i++;
+        } else if (args[i] === '--since' && i + 1 < args.length && !args[i + 1].startsWith('--')) {
+          since = args[i + 1];
+          i++;
         }
       }
 
-      if (payoutIds.length === 0 && !lastId) {
-        console.error('Error: Payout ID or --lastid is required for "export" command.');
+      if (payoutIds.length === 0 && !lastId && !since) {
+        console.error('Error: Payout ID, --lastid, or --since is required for "export" command.');
         process.exit(1);
       }
 
-      await exportPayouts(payoutIds, outDir, logFile, lastId, format);
+      await exportPayouts(payoutIds, outDir, logFile, lastId, format, since);
       break;
     }
     default:
@@ -432,7 +438,7 @@ const [command, ...args] = process.argv.slice(2);
       console.error('Commands:');
       console.error('  list [--limit <int>] [--since <date>] [--verbose] - List all payouts');
       console.error('  view <payout_id> [--verbose] - View payout details');
-      console.error('  export [<payout_id>] [--lastid [<payout_id>]] [--format <html|pdf|json>] [--outdir <dirname>] [--log <filename>] [--verbose] - Export report(s)');
+      console.error('  export [<payout_id>] [--lastid [<payout_id>]] [--since <date>] [--format <html|pdf|json>] [--outdir <dirname>] [--log <filename>] [--verbose] - Export report(s)');
       process.exit(1);
   }
 })();
