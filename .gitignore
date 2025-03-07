@@ -1,0 +1,22 @@
+# Node.js
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Generated reports
+payout_reports/
+
+# Config file (if you want to keep it private)
+config.json
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+{
+  "logo": {
+    "url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg",
+    "width": "200px"
+  },
+  "stripe": {
+    "auth": "<your-token-goes-here>",
+    "account": 0000
+  },
+  "output": "./payout_reports",
+  "format": "pdf"
+}

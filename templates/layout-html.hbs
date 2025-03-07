@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payout Report - {{payout.id}}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; margin: 20px; }
+        .header { display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .logo { margin-right: 20px; }
+        .title { font-size: 30px; font-weight: bold; color: color(srgb 0.3882 0.3569 1) }
+        .details { display: flex; flex-wrap: wrap; margin-bottom: 20px; }
+        .details div { flex: 1 1 50%; padding: 5px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.8em;}
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .footer { text-align: center; margin-top: 20px; font-size: 0.8em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <img src="{{logo.url}}" 
+                 {{#if logo.width}}width="{{logo.width}}"{{/if}} 
+                 {{#if logo.height}}height="{{logo.height}}"{{/if}} 
+                 alt="Logo">
+        </div>
+        <div class="title">Payment Report</div>
+    </div>
+
+    <div class="details">
+        <div><strong>ID:</strong> {{payout.id}}</div>
+        <div><strong>Date:</strong> {{payout.date}}</div>
+        <div><strong>Amount:</strong> {{payout.amount}} {{payout.currency}}</div>
+        <div><strong>Status:</strong> {{payout.status}}</div>
+        <div><strong>Total Fees:</strong> {{payout.totalFees}} {{payout.currency}}</div>
+        <div><strong>Number of Invoices:</strong> {{payout.numberOfInvoices}}</div>
+    </div>
+
+    {{#if transactions.length}}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Amount</th>
+                <th>Fees</th>
+                <th>Net</th>
+                <th>Date</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each transactions}}
+            <tr>
+                <td>{{transactionId}}</td>
+                <td>{{amount}} {{currency}}</td>
+                <td>{{fees}} {{currency}}</td>
+                <td>{{net}} {{currency}}</td>
+                <td>{{created}}</td>
+                <td>{{description}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    {{else}}
+    <p>No related transactions found.</p>
+    {{/if}}
+
+    <div class="footer">
+        Generated on {{generatedDate}}
+    </div>
+</body>
+</html>

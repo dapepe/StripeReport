@@ -1,0 +1,19 @@
+{
+  "name": "StripeReports",
+  "version": "1.0.0",
+  "description": "A tool to generate HTML payout reports from Stripe balance transactions",
+  "main": "main.js",
+  "scripts": {
+    "start": "node main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "cli-table3": "^0.6.5",
+    "handlebars": "^4.7.8",
+    "pdfkit": "^0.16.0",
+    "stripe": "^16.8.0",
+    "winston": "^3.17.0"
+  }
+}
