@@ -98,19 +98,23 @@ async function fetchAllBalanceTransactions(options = {}) {
   }
 }
 
-async function listPayouts(limit, since) {
+async function listPayouts(limit, since, lastId) {
   try {
     const params = { limit: limit || 100 };
     if (since) params.created = { gte: Math.floor(new Date(since).getTime() / 1000) };
+    if (lastId) params.starting_after = lastId;
+    
     log(`Fetching payouts with params:`, JSON.stringify(params));
 
     const payouts = [];
     let hasMore = true;
-    let startingAfter = null;
+    let startingAfter = lastId;
 
     while (hasMore && payouts.length < (limit || Infinity)) {
       const pageParams = { ...params };
-      if (startingAfter) pageParams.starting_after = startingAfter;
+      if (startingAfter && startingAfter !== lastId) {
+        pageParams.starting_after = startingAfter;
+      }
       const response = await stripe.payouts.list(pageParams);
       log(`Received ${response.data.length} payouts, has_more: ${response.has_more}`);
 
@@ -216,7 +220,6 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
     payoutsToExport = payoutIds;
   } else if (lastId || since) {
     const params = { limit: 100 };
-    if (lastId) params.starting_after = lastId;
     if (since) params.created = { gte: Math.floor(new Date(since).getTime() / 1000) };
     const payouts = [];
     let hasMore = true;
@@ -224,17 +227,23 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
 
     while (hasMore) {
       const pageParams = { ...params };
-      if (startingAfter && !lastId) pageParams.starting_after = startingAfter; // Only use starting_after if lastId isn’t set
+      if (startingAfter) {
+        pageParams.starting_after = startingAfter;
+      }
       log(`Fetching payouts with params:`, JSON.stringify(pageParams));
       const response = await stripe.payouts.list(pageParams);
       log(`Received ${response.data.length} payouts, has_more: ${response.has_more}`);
 
       payouts.push(...response.data);
       hasMore = response.has_more;
-      startingAfter = response.data.length > 0 ? response.data[response.data.length - 1].id : null;
+      if (response.data.length > 0) {
+        startingAfter = response.data[response.data.length - 1].id;
+      } else {
+        hasMore = false;
+      }
     }
 
-    payoutsToExport = payouts.map(p => p.id).reverse(); // Newest first
+    payoutsToExport = payouts.map(p => p.id);
     log(`Payouts to export: ${payoutsToExport.join(', ')}`);
   } else {
     payoutsToExport = [payoutIds];
@@ -328,7 +337,7 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
   }
 
   if (payoutIds.length === 0 && payoutsToExport.length > 0) {
-    const lastProcessedId = payoutsToExport[payoutsToExport.length - 1];
+    const lastProcessedId = payoutsToExport[0];
     let existingIds = '';
     try {
       existingIds = await fs.readFile(LASTID_FILE, 'utf8');
@@ -354,6 +363,8 @@ const [command, ...args] = process.argv.slice(2);
     case 'list': {
       let limit = null;
       let since = null;
+      let lastId = null;
+      
       for (let i = 0; i < args.length; i++) {
         if (args[i] === '--limit' && i + 1 < args.length && !args[i + 1].startsWith('--')) {
           limit = parseInt(args[i + 1], 10);
@@ -361,9 +372,26 @@ const [command, ...args] = process.argv.slice(2);
         } else if (args[i] === '--since' && i + 1 < args.length && !args[i + 1].startsWith('--')) {
           since = args[i + 1];
           i++;
+        } else if (args[i] === '--lastid') {
+          if (i + 1 < args.length && !args[i + 1].startsWith('--')) {
+            lastId = args[i + 1];
+            i++;
+          } else {
+            try {
+              const content = await fs.readFile(LASTID_FILE, 'utf8');
+              lastId = content.split('\n')[0].trim();
+              log(`Read lastId from file: ${lastId}`);
+            } catch (err) {
+              if (err.code === 'ENOENT') {
+                console.error('Error: --lastid specified but no lastid file exists.');
+                process.exit(1);
+              }
+              throw err;
+            }
+          }
         }
       }
-      await listPayouts(limit, since);
+      await listPayouts(limit, since, lastId);
       break;
     }
     case 'view': {
@@ -436,7 +464,7 @@ const [command, ...args] = process.argv.slice(2);
     default:
       console.error('Usage: ./report.sh <command> [options]');
       console.error('Commands:');
-      console.error('  list [--limit <int>] [--since <date>] [--verbose] - List all payouts');
+      console.error('  list [--limit <int>] [--since <date>] [--lastid [<payout_id>]] [--verbose] - List all payouts');
       console.error('  view <payout_id> [--verbose] - View payout details');
       console.error('  export [<payout_id>] [--lastid [<payout_id>]] [--since <date>] [--format <html|pdf|json>] [--outdir <dirname>] [--log <filename>] [--verbose] - Export report(s)');
       process.exit(1);
