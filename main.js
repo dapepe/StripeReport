@@ -249,6 +249,8 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
     payoutsToExport = [payoutIds];
   }
 
+  const finalStartingAfter = startingAfter; // Capture the last ID used for pagination
+
   for (const payoutId of payoutsToExport) {
     try {
       log(`Fetching payout ${payoutId}`);
@@ -336,17 +338,14 @@ async function exportPayouts(payoutIds, outDir, logFile, lastId, format = config
     }
   }
 
-  if (payoutIds.length === 0 && payoutsToExport.length > 0) {
-    const lastProcessedId = payoutsToExport[0];
-    let existingIds = '';
+  if (payoutIds.length === 0 && payoutsToExport.length > 0 && finalStartingAfter) {
     try {
-      existingIds = await fs.readFile(LASTID_FILE, 'utf8');
+      await fs.writeFile(LASTID_FILE, finalStartingAfter);
+      log(`Updated lastid file with ${finalStartingAfter}`);
     } catch (err) {
-      if (err.code !== 'ENOENT') throw err;
+      console.error(`Error writing lastid file: ${err.message}`);
+      log(`Error writing lastid file: ${err.message}`);
     }
-    const newContent = `${lastProcessedId}\n${existingIds}`.trim();
-    await fs.writeFile(LASTID_FILE, newContent);
-    log(`Updated lastid file with ${lastProcessedId}`);
   }
 }
 
